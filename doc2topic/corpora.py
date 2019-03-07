@@ -2,10 +2,15 @@ import collections
 import numpy as np
 import random
 import json
-
+import csv
+import re
+import nltk
+from nltk.corpus import stopwords
+from nltk.stem.porter import *
 
 class DocData:
 	def __init__(self, filename, min_count=5, ns_rate=2):
+		self.song_info = ["not updated"]
 		self.docs, self.cntr = self.read_docs_file(filename)
 		self.n_docs = len(self.docs)
 		self.vocab_size = np.nan
@@ -18,22 +23,29 @@ class DocData:
 			Input format: one document per line, tokens space separated """
 		data = []
 		cntr = collections.defaultdict(lambda: 0)
+		nltk.download("stopwords")
+		stops = set(stopwords.words("english"))
+		stemmer = PorterStemmer()
 		print("Reading documents...", end='', flush=True)
-		f = open(filename)
 
-		while True:
-			line = f.readline()
-			if not line:
-				break
-			if lowercase:
-				line = line.lower()
-			data.append(line.strip().split())
-			for token in data[-1]:
-				cntr[token] += 1
-			if len(data) % 100 == 0:
-				print("\rReading documents: %d" % len(data), end='', flush=True)
-
-		print()
+		with open(filename) as csv_file:
+				csv_reader = csv.reader(csv_file, delimiter=',')
+				line_count = 0
+				song_info = []
+				for row in csv_reader:
+						if line_count != 0:
+								lyrics = re.sub(r'\W+', ' ', row[3]).lower().strip().split()
+								lyrics = [stemmer.stem(word) for word in lyrics]
+								filtered_lyrics = [word for word in lyrics if word not in stops]
+								data.append(filtered_lyrics)
+								song_info.append((row[0], row[1]))
+								for token in data[-1]:
+										cntr[token] += 1
+								if len(data) % 100 == 0:
+										print("\rReading documents: %d" % len(data), end='', flush=True)
+						line_count += 1
+						if line_count == 5000: break
+		self.song_info = song_info
 		return data, cntr
 
 

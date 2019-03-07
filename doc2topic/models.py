@@ -68,9 +68,11 @@ class Doc2Topic:
 		self.model = Model(inputs=[inlayerD,inlayerW], outputs=[output])
 		self.model.compile(loss='binary_crossentropy', optimizer=opt, metrics=[fmeasure])
 		self.layer_lookup = dict([(x.name,i) for i,x in enumerate(self.model.layers)])
+		self.song_info = corpus.song_info
+		print(self.song_info)
 
 		self.train(n_epochs=n_epochs)
-
+		# self.save()
 
 	def train(self, n_epochs, callbacks=[]):
 		self.docvecs = None
@@ -160,6 +162,19 @@ class Doc2Topic:
 					),
 				key=lambda x:-1*x[1])[:top_n]
 
+	def get_document_topics_json(self):
+		json_list = []
+		for index, val in enumerate(self.song_info):
+			assignments = L1normalize(self.get_docvecs()[index,:])
+			sorted_list = sorted(
+					filter(lambda x:x[1]>0, enumerate(assignments)),
+					key=lambda x:-1*x[1]) # descending list of (doc_id, score)
+			topic_list = []
+			for it_index, it_val in sorted_list:
+				topic_list.append(self.corpus.idx2token[it_index])
+			json_list.append({'artist': self.song_info[index][0], 'title': self.song_info[index][1], 'topics': topic_list})
+		with open('song_topics.json', 'w') as outfile:
+			json.dump(json_list, outfile)
 
 class Logger:
 	def __init__(self, filename, model, evaluator):
